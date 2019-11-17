@@ -6,8 +6,8 @@ import csv
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-session = boto3.Session()
-client = session.client('ec2', region_name='us-east-1')
+session = boto3.Session(profile_name='dev')
+client = session.client('ec2', region_name='eu-west-1')
 
 def write_to_csv(columns, dict_data, file_name):
     try:
@@ -31,7 +31,9 @@ def find_tag_diffs(client, default_tags):
         client_tags = get_tags_for_client(client['Tags'])
         tags_not_found = list(set(default_tags) - (set(client_tags)))
     else:
-        tags_not_found = tags
+        tags_not_found = default_tags
+
+    tags_not_found = str(tags_not_found).strip('[]')
     return tags_not_found
 
 def untagged_volumes(tags):
