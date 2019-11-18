@@ -6,8 +6,8 @@ import csv
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-session = boto3.Session(profile_name='dev')
-client = session.client('ec2', region_name='eu-west-1')
+session = boto3.Session()
+client = session.client('ec2', region_name='us-east-1')
 
 def write_to_csv(columns, dict_data, file_name):
     try:
@@ -18,6 +18,13 @@ def write_to_csv(columns, dict_data, file_name):
                 writer.writerow(data)
     except IOError:
         print("I/O error")
+
+def get_tag_value(tag_key, client):
+    if 'Tags' in str(client):
+        for tag in client['Tags']:
+            if tag.values()[1] == tag_key:
+                return tag.values()[0]
+    return 'unknown'
 
 def get_tags_for_client(tags_array):
     keys = []
@@ -33,11 +40,11 @@ def find_tag_diffs(client, default_tags):
     else:
         tags_not_found = default_tags
 
-    tags_not_found = str(tags_not_found).strip('[]')
+    tags_not_found = " ".join(tags_not_found)
     return tags_not_found
 
 def untagged_volumes(tags):
-    csv_columns = ['VolumeID', 'AttachedDevice', 'TagsMissing']
+    csv_columns = ['InstanceName', 'VolumeID', 'AttachedDevice', 'TagsMissing']
     untagged_volumes = []
     response = client.describe_volumes()
     for volume in response['Volumes']:
@@ -45,17 +52,16 @@ def untagged_volumes(tags):
             attached_device = volume['Attachments'][0]['InstanceId']
         else:
             attached_device = "None"
+        instance_name = get_tag_value('instance_name', volume)
         tags_not_found = find_tag_diffs(volume,tags)
-
         if tags_not_found:
-
-            untagged_volume = {'VolumeID': volume['VolumeId'], 'AttachedDevice': attached_device, 'TagsMissing': tags_not_found}
+            untagged_volume = {'InstanceName': instance_name, 'VolumeID': volume['VolumeId'], 'AttachedDevice': attached_device, 'TagsMissing': tags_not_found}
             untagged_volumes.append(untagged_volume)
 
     write_to_csv(csv_columns, untagged_volumes, "untagged_volumes.csv")
 
 def untagged_ec2s(tags):
-    csv_columns = ['InstanceId', 'InstanceLifecycle', 'InstanceState', 'TagsMissing']
+    csv_columns = ['Name', 'InstanceId', 'InstanceLifecycle', 'InstanceState', 'TagsMissing']
     untagged_ec2s = []
     response = client.describe_instances()
     for reservation in response['Reservations']:
@@ -65,14 +71,16 @@ def untagged_ec2s(tags):
             lifecycle = instance['InstanceLifecycle']
         else:
             lifecycle = 'normal'
+        name = get_tag_value('Name', instance)
         if tags_not_found:
-            untagged_ec2 = {'InstanceId': instance['InstanceId'], 'InstanceLifecycle': lifecycle, 'InstanceState': instance['State']['Name'], 'TagsMissing': tags_not_found}
+            untagged_ec2 = {'Name': name, 'InstanceId': instance['InstanceId'], 'InstanceLifecycle': lifecycle, 'InstanceState': instance['State']['Name'], 'TagsMissing': tags_not_found}
             untagged_ec2s.append(untagged_ec2)
 
     write_to_csv(csv_columns, untagged_ec2s, "untagged_ec2s.csv")
 
 
 if __name__ == "__main__":
-    tags = ['chef_role', 'component', 'fiverr_group', 'instance_name', 'team']
-    untagged_volumes(tags)
-    untagged_ec2s(tags)
+    EBS_tags = ['chef_role', 'component', 'fiverr_group', 'instance_name', 'team']
+    EC2_tags = ['Name', 'chef_role', 'component', 'fiverr_group', 'group', 'team']
+    untagged_volumes(EBS_tags)
+    untagged_ec2s(EC2_tags)
