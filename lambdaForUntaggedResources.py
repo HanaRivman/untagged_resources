@@ -9,6 +9,7 @@ logger.setLevel(logging.INFO)
 session = boto3.Session()
 client = session.client('ec2', region_name='us-east-1')
 
+# write thק data to CSV
 def write_to_csv(columns, dict_data, file_name):
     try:
         with open(file_name, 'w') as csvfile:
@@ -19,13 +20,15 @@ def write_to_csv(columns, dict_data, file_name):
     except IOError:
         print("I/O error")
 
+# get a tag value if exists
 def get_tag_value(tag_key, client):
     if 'Tags' in str(client):
         for tag in client['Tags']:
             if tag.values()[1] == tag_key:
                 return tag.values()[0]
-    return 'unknown'
+    return ' '
 
+# get the tags of a client
 def get_tags_for_client(tags_array):
     keys = []
     for tag in tags_array:
@@ -33,16 +36,17 @@ def get_tags_for_client(tags_array):
     keys.sort()
     return keys
 
+# get all tags the client lacks
 def find_tag_diffs(client, default_tags):
     if 'Tags' in str(client):
         client_tags = get_tags_for_client(client['Tags'])
         tags_not_found = list(set(default_tags) - (set(client_tags)))
     else:
         tags_not_found = default_tags
-
     tags_not_found = " ".join(tags_not_found)
     return tags_not_found
 
+# get all untagged volumes
 def untagged_volumes(tags):
     csv_columns = ['InstanceName', 'VolumeID', 'AttachedDevice', 'TagsMissing']
     untagged_volumes = []
@@ -60,6 +64,7 @@ def untagged_volumes(tags):
 
     write_to_csv(csv_columns, untagged_volumes, "untagged_volumes.csv")
 
+# get all untagged EC2 instances
 def untagged_ec2s(tags):
     csv_columns = ['Name', 'InstanceId', 'InstanceLifecycle', 'InstanceState', 'TagsMissing']
     untagged_ec2s = []
