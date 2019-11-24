@@ -9,7 +9,7 @@ logger.setLevel(logging.INFO)
 session = boto3.Session()
 client = session.client('ec2', region_name='us-east-1')
 
-# write thק data to CSV
+# write the data to CSV
 def write_to_csv(columns, dict_data, file_name):
     try:
         with open(file_name, 'w') as csvfile:
