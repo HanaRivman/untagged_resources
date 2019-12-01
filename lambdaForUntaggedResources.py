@@ -56,7 +56,9 @@ def untagged_volumes(tags):
             attached_device = volume['Attachments'][0]['InstanceId']
         else:
             attached_device = "None"
-        instance_name = get_tag_value('instance_name', volume)
+        instance_name = get_tag_value('Name', volume)
+        if len(instance_name) == 0:
+            instance_name = get_tag_value('instance_name', volume)
         tags_not_found = find_tag_diffs(volume,tags)
         if tags_not_found:
             untagged_volume = {'InstanceName': instance_name, 'VolumeID': volume['VolumeId'], 'AttachedDevice': attached_device, 'TagsMissing': tags_not_found}
